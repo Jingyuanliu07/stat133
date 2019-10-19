@@ -1,0 +1,56 @@
+#!/bin/bash
+# shell script for downloading data
+
+# 1. download files
+echo "Begin downloading data from NOAA NCDC ..."
+
+DATA_DIR="../data"
+cd $DATA_DIR
+
+years=(2010 2011 2012 2013 2014 2015)
+for y in ${years[@]}
+do
+    dfile="Year.$y.ibtracs_all.v03r10.csv"
+    url="ftp://eclipse.ncdc.noaa.gov/pub/ibtracs/v03r10/all/csv/year/${dfile}"
+    curl -o ${dfile} ${url}
+done
+
+echo "Download finished!"
+
+
+# 2. assemble files
+echo "Begin assembling ..."
+file="ibtracs-2010-2015.csv"
+for y in ${years[@]}
+do  
+    dfile="Year.$y.ibtracs_all.v03r10.csv"
+    if [ $y = 2010 ]; then
+        awk -F "," 'NR == 2 {print $1","$2","$3","$4","$5","$6","$7","$8","$9","$10","$11","$12}' ${dfile} > ${file}
+    fi
+    awk -F "," 'NR > 3 {print $1","$2","$3","$4","$5","$6","$7","$8","$9","$10","$11","$12}' ${dfile} >> ${file}
+done
+
+echo "Assembling finished!"
+
+
+# 3. Operations
+echo "Begin operations ..."
+
+serial_file="../output/serial-numbers.txt"
+records_file="../output/records-per-year.txt"
+basin_file="../output/basin-frequencies.txt"
+sub_file="../output/sub-basin-frequencies.txt"
+
+# output the unique Serial Number of storms
+awk -F "," 'NR > 1 {a[$1]++} END {for (b in a) {print b}}' ${file} > ${serial_file}
+
+# obtain the total number of records per year
+awk -F ',' 'NR > 1 {sum[$2]+=1} END{for(i in sum) print i","sum[i]}' ${file} > ${records_file}
+
+# obtain the frequencies of the Basin records
+awk -F ',' 'NR > 1 {sum[$4]+=1} END{for(i in sum) print i","sum[i]}' ${file} > ${basin_file}
+
+# obtain the frequencies of the Sub-Basins records
+awk -F ',' 'NR > 1 {sum[$5]+=1} END{for(i in sum) print i","sum[i]}' ${file} > ${sub_file}
+
+echo "Operations finished!"
